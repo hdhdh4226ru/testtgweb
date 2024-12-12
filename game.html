@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Telegram Кликер</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        #clickButton {
+            padding: 20px 40px;
+            font-size: 24px;
+            margin: 20px;
+            border-radius: 10px;
+            border: none;
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #score {
+            font-size: 36px;
+            margin: 20px;
+        }
+        #upgrades {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .upgrade-button {
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
+            background-color: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Очки: 0</div>
+    <button id="clickButton">Клик!</button>
+    <div id="upgrades">
+        <button class="upgrade-button" id="autoClickerBtn" onclick="buyAutoClicker()">
+            Купить автокликер (100 очков)
+        </button>
+        <button class="upgrade-button" id="multiplierBtn" onclick="buyMultiplier()">
+            Купить множитель (200 очков)
+        </button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let score = 0;
+        let clickPower = 1;
+        let autoClickers = 0;
+        
+        document.getElementById('clickButton').onclick = function() {
+            score += clickPower;
+            updateScore();
+            // Добавляем вибрацию при клике
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+        };
+
+        function updateScore() {
+            document.getElementById('score').innerText = `Очки: ${Math.floor(score)}`;
+            // Сохраняем прогресс в CloudStorage
+            if (tg.CloudStorage) {
+                tg.CloudStorage.setItem('clickerData', JSON.stringify({
+                    score: score,
+                    clickPower: clickPower,
+                    autoClickers: autoClickers
+                }));
+            }
+        }
+
+        function buyAutoClicker() {
+            if (score >= 100) {
+                score -= 100;
+                autoClickers++;
+                updateScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+        }
+
+        function buyMultiplier() {
+            if (score >= 200) {
+                score -= 200;
+                clickPower *= 2;
+                updateScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+        }
+
+        // Автокликер
+        setInterval(() => {
+            score += autoClickers;
+            if (autoClickers > 0) {
+                updateScore();
+            }
+        }, 1000);
+
+        // Загрузка сохраненного прогресса
+        if (tg.CloudStorage) {
+            tg.CloudStorage.getItem('clickerData', function(err, value) {
+                if (!err && value) {
+                    const data = JSON.parse(value);
+                    score = data.score || 0;
+                    clickPower = data.clickPower || 1;
+                    autoClickers = data.autoClickers || 0;
+                    updateScore();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
