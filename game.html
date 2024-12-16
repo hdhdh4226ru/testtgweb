@@ -78,7 +78,7 @@
         let score = 0;
         let clickPower = 1;
         let autoClickers = 0;
-        
+
         document.getElementById('clickButton').onclick = function() {
             score += clickPower;
             updateScore();
@@ -89,21 +89,39 @@
         };
 
         function updateScore() {
+            console.log('Обновление счета:', score, clickPower, autoClickers); // Отладочный лог
             document.getElementById('score').innerText = `Очки: ${Math.floor(score)}`;
-            // Сохраняем прогресс в CloudStorage
-            if (tg.CloudStorage) {
-                tg.CloudStorage.setItem('clickerData', JSON.stringify({
+            
+            // Сохраняем прогресс в CloudStorage Telegram
+            if (tg.storage) {
+                const dataToSave = {
                     score: score,
                     clickPower: clickPower,
                     autoClickers: autoClickers
-                }));
+                };
+                tg.storage.setData({ clickerData: JSON.stringify(dataToSave) }, (error) => {
+                    if (error) {
+                        console.error('Ошибка при сохранении в CloudStorage:', error);
+                    } else {
+                        console.log('Данные успешно сохранены в CloudStorage.');
+                    }
+                });
+            } else {
+                console.warn('CloudStorage недоступен.');
             }
+
             // Сохраняем прогресс в localStorage
-            localStorage.setItem('clickerData', JSON.stringify({
-                score: score,
-                clickPower: clickPower,
-                autoClickers: autoClickers
-            }));
+            try {
+                const dataToSave = {
+                    score: score,
+                    clickPower: clickPower,
+                    autoClickers: autoClickers
+                };
+                localStorage.setItem('clickerData', JSON.stringify(dataToSave));
+                console.log('Данные успешно сохранены в localStorage.');
+            } catch (e) {
+                console.error('Ошибка при сохранении в localStorage:', e);
+            }
         }
 
         function buyAutoClicker() {
@@ -157,26 +175,46 @@
         // Загрузка сохраненного прогресса из CloudStorage и localStorage
         function loadGame() {
             // Загружаем из CloudStorage
-            if (tg.CloudStorage) {
-                tg.CloudStorage.getItem('clickerData', function(err, value) {
-                    if (!err && value) {
-                        const data = JSON.parse(value);
-                        score = data.score || 0;
-                        clickPower = data.clickPower || 1;
-                        autoClickers = data.autoClickers || 0;
-                        updateScore();
+            if (tg.storage) {
+                tg.storage.getData((error, data) => {
+                    if (error) {
+                        console.error('Ошибка при загрузке из CloudStorage:', error);
+                        return;
+                    }
+                    if (data.clickerData) {
+                        try {
+                            const parsedData = JSON.parse(data.clickerData);
+                            score = parsedData.score || 0;
+                            clickPower = parsedData.clickPower || 1;
+                            autoClickers = parsedData.autoClickers || 0;
+                            console.log('Данные загружены из CloudStorage:', parsedData);
+                            updateScore();
+                        } catch (e) {
+                            console.error('Ошибка при разборе данных из CloudStorage:', e);
+                        }
+                    } else {
+                        console.log('Данные из CloudStorage отсутствуют.');
                     }
                 });
+            } else {
+                console.warn('CloudStorage недоступен.');
             }
 
             // Загружаем из localStorage
             const savedData = localStorage.getItem('clickerData');
             if (savedData) {
-                const data = JSON.parse(savedData);
-                score = data.score || 0;
-                clickPower = data.clickPower || 1;
-                autoClickers = data.autoClickers || 0;
-                updateScore();
+                try {
+                    const parsedData = JSON.parse(savedData);
+                    score = parsedData.score || 0;
+                    clickPower = parsedData.clickPower || 1;
+                    autoClickers = parsedData.autoClickers || 0;
+                    console.log('Данные загружены из localStorage:', parsedData);
+                    updateScore();
+                } catch (e) {
+                    console.error('Ошибка при разборе данных из localStorage:', e);
+                }
+            } else {
+                console.log('Данные из localStorage отсутствуют.');
             }
         }
 
