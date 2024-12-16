@@ -14,6 +14,7 @@
         #score {
             font-size: 48px;
             margin-bottom: 20px;
+            white-space: pre-line;
         }
         #clickButton, #statusButton {
             padding: 15px 30px;
@@ -21,23 +22,36 @@
             cursor: pointer;
             margin: 10px;
         }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Добро пожаловать в Telegram Кликер!</h1>
     <div>
-        <label for="userId">Ваш Telegram ID:</label>
+        <label for="userId">Ваш Telegram ID:</label><br>
         <input type="text" id="userId" placeholder="Введите ваш Telegram ID">
     </div>
     <div id="score">Ваши очки: 0</div>
     <button id="clickButton">Нажать</button>
     <button id="statusButton">Показать статус</button>
 
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
+        // Инициализация Telegram Web Apps
+        Telegram.WebApp.ready();
+
+        // Определите BASE_URL в соответствии с вашим публичным URL
+        const BASE_URL = 'https://hdhdh4226ru.github.io/testtgweb'; // Без game.html, если вы обращаетесь к API
+
         // Функция для отображения данных
         function displayUserData(data) {
             const scoreDiv = document.getElementById('score');
-            if (data) {
+            if (data && data.score !== undefined) {
                 scoreDiv.innerText = `Ваши очки: ${data.score}\nСила клика: ${data.click_power}\nАвтокликеры: ${data.auto_clickers}`;
             } else {
                 scoreDiv.innerText = `Данные не найдены. Пожалуйста, используйте Telegram-бота для инициализации.`;
@@ -53,7 +67,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:5000/click', {
+                const response = await fetch(`${BASE_URL}/click`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -63,7 +77,7 @@
 
                 const result = await response.json();
 
-                if (response.ok) {
+                if (response.ok && result.status === 'success') {
                     displayUserData({ score: result.score });
                     alert('Клик успешно сохранен!');
                 } else {
@@ -71,7 +85,7 @@
                 }
             } catch (error) {
                 console.error('Ошибка при отправке клика:', error);
-                alert('Не удалось отправить клик. Убедитесь, что бот запущен.');
+                alert('Не удалось отправить клик. Убедитесь, что приложение запущено.');
             }
         });
 
@@ -84,12 +98,18 @@
             }
 
             try {
-                // Отправка запроса к Telegram боту для получения статуса
-                // Для этого требуется реализовать дополнительный эндпоинт или использовать существующие команды бота
-                alert('Статус доступен через Telegram бота. Пожалуйста, используйте команду /status.');
+                const response = await fetch(`${BASE_URL}/status?user_id=${userId}`);
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    displayUserData(result);
+                    alert('Статус получен успешно!');
+                } else {
+                    alert(`Ошибка: ${result.message}`);
+                }
             } catch (error) {
                 console.error('Ошибка при получении статуса:', error);
-                alert('Не удалось получить статус.');
+                alert('Не удалось получить статус. Убедитесь, что приложение запущено.');
             }
         });
     </script>
