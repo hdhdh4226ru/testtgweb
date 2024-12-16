@@ -148,12 +148,10 @@
             }
         }
 
-        // Автокликер
+        // Автокликер с регулярным сохранением
         setInterval(() => {
             score += autoClickers;
-            if (autoClickers > 0) {
-                updateScore();
-            }
+            updateScore();
         }, 1000);
 
         // Загрузка сохраненного прогресса из CloudStorage и localStorage
