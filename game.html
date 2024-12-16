@@ -72,7 +72,7 @@
     <button id="resetButton" onclick="resetGame()">Сбросить счет</button>
 
     <script>
-        let tg = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
         tg.expand();
 
         let score = 0;
@@ -88,10 +88,10 @@
             }
         };
 
-        function updateScore() {
+        async function updateScore() {
             console.log('Обновление счета:', score, clickPower, autoClickers); // Отладочный лог
             document.getElementById('score').innerText = `Очки: ${Math.floor(score)}`;
-            
+
             // Сохраняем прогресс в CloudStorage Telegram
             if (tg.storage) {
                 const dataToSave = {
@@ -99,18 +99,13 @@
                     clickPower: clickPower,
                     autoClickers: autoClickers
                 };
-                tg.storage.setData({ clickerData: JSON.stringify(dataToSave) }, (error) => {
-                    if (error) {
-                        console.error('Ошибка при сохранении в CloudStorage:', error);
-                    } else {
-                        console.log('Данные успешно сохранены в CloudStorage.');
-                    }
-                });
+                tg.storage.setData({ clickerData: JSON.stringify(dataToSave) });
+                console.log('Данные сохранены в tg.storage.');
             } else {
-                console.warn('CloudStorage недоступен.');
+                console.warn('tg.storage недоступен.');
             }
 
-            // Сохраняем прогресс в localStorage
+            // Дополнительно сохраняем в localStorage для резервного копирования
             try {
                 const dataToSave = {
                     score: score,
@@ -118,89 +113,35 @@
                     autoClickers: autoClickers
                 };
                 localStorage.setItem('clickerData', JSON.stringify(dataToSave));
-                console.log('Данные успешно сохранены в localStorage.');
+                console.log('Данные сохранены в localStorage.');
             } catch (e) {
                 console.error('Ошибка при сохранении в localStorage:', e);
             }
         }
 
-        function buyAutoClicker() {
-            if (score >= 1000) {
-                score -= 1000;
-                autoClickers++;
-                updateScore();
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            } else {
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('error');
-                }
-            }
-        }
-
-        function buyMultiplier() {
-            if (score >= 2000) {
-                score -= 2000;
-                clickPower += 1; // Добавляем 1 к clickPower вместо умножения
-                updateScore();
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            } else {
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('error');
-                }
-            }
-        }
-
-        function resetGame() {
-            if (confirm("Вы уверены, что хотите сбросить счет?")) {
-                score = 0;
-                clickPower = 1;
-                autoClickers = 0;
-                updateScore();
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            }
-        }
-
-        // Автокликер с регулярным сохранением
-        setInterval(() => {
-            score += autoClickers;
-            updateScore();
-        }, 1000);
-
-        // Загрузка сохраненного прогресса из CloudStorage и localStorage
-        function loadGame() {
-            // Загружаем из CloudStorage
+        async function loadScore() {
+            // Загружаем из tg.storage
             if (tg.storage) {
-                tg.storage.getData((error, data) => {
-                    if (error) {
-                        console.error('Ошибка при загрузке из CloudStorage:', error);
-                        return;
+                const data = await tg.storage.getData();
+                if (data.clickerData) {
+                    try {
+                        const parsedData = JSON.parse(data.clickerData);
+                        score = parsedData.score || 0;
+                        clickPower = parsedData.clickPower || 1;
+                        autoClickers = parsedData.autoClickers || 0;
+                        console.log('Данные загружены из tg.storage:', parsedData);
+                        updateScore();
+                    } catch (e) {
+                        console.error('Ошибка при разборе данных из tg.storage:', e);
                     }
-                    if (data.clickerData) {
-                        try {
-                            const parsedData = JSON.parse(data.clickerData);
-                            score = parsedData.score || 0;
-                            clickPower = parsedData.clickPower || 1;
-                            autoClickers = parsedData.autoClickers || 0;
-                            console.log('Данные загружены из CloudStorage:', parsedData);
-                            updateScore();
-                        } catch (e) {
-                            console.error('Ошибка при разборе данных из CloudStorage:', e);
-                        }
-                    } else {
-                        console.log('Данные из CloudStorage отсутствуют.');
-                    }
-                });
+                } else {
+                    console.log('Данные из tg.storage отсутствуют.');
+                }
             } else {
-                console.warn('CloudStorage недоступен.');
+                console.warn('tg.storage недоступен.');
             }
 
-            // Загружаем из localStorage
+            // Загружаем из localStorage как резерв
             const savedData = localStorage.getItem('clickerData');
             if (savedData) {
                 try {
@@ -218,7 +159,79 @@
             }
         }
 
-        window.onload = loadGame;
+        async function buyAutoClicker() {
+            if (score >= 1000) {
+                score -= 1000;
+                autoClickers++;
+                updateScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+        }
+
+        async function buyMultiplier() {
+            if (score >= 2000) {
+                score -= 2000;
+                clickPower += 1; // Добавляем 1 к clickPower вместо умножения
+                updateScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+        }
+
+        async function resetGame() {
+            if (confirm("Вы уверены, что хотите сбросить счет?")) {
+                score = 0;
+                clickPower = 1;
+                autoClickers = 0;
+                updateScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+
+                // Сброс данных в tg.storage
+                if (tg.storage) {
+                    tg.storage.setData({ clickerData: JSON.stringify({
+                        score: score,
+                        clickPower: clickPower,
+                        autoClickers: autoClickers
+                    }) });
+                    console.log('Данные сброшены в tg.storage.');
+                }
+
+                // Сброс данных в localStorage
+                try {
+                    const dataToReset = {
+                        score: score,
+                        clickPower: clickPower,
+                        autoClickers: autoClickers
+                    };
+                    localStorage.setItem('clickerData', JSON.stringify(dataToReset));
+                    console.log('Данные сброшены в localStorage.');
+                } catch (e) {
+                    console.error('Ошибка при сбросе в localStorage:', e);
+                }
+            }
+        }
+
+        // Автокликер с регулярным сохранением
+        setInterval(() => {
+            score += autoClickers;
+            updateScore();
+        }, 1000);
+
+        // Загрузка сохраненного прогресса при загрузке страницы
+        window.onload = loadScore;
     </script>
 </body>
 </html>
