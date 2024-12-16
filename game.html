@@ -1,237 +1,97 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
     <title>Telegram Кликер</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
-        }
-        #clickButton {
-            padding: 20px 40px;
-            font-size: 24px;
-            margin: 20px;
-            border-radius: 10px;
-            border: none;
-            background-color: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
-            cursor: pointer;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            text-align: center;
+            padding: 50px;
+            background-color: #f0f0f0;
         }
         #score {
-            font-size: 36px;
-            margin: 20px;
+            font-size: 48px;
+            margin-bottom: 20px;
         }
-        #upgrades {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .upgrade-button {
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            border: none;
-            background-color: var(--tg-theme-secondary-bg-color);
-            color: var(--tg-theme-text-color);
+        #clickButton, #statusButton {
+            padding: 15px 30px;
+            font-size: 18px;
             cursor: pointer;
-        }
-        #resetButton {
-            padding: 10px 20px;
             margin: 10px;
-            border-radius: 5px;
-            border: none;
-            background-color: #ff4d4d;
-            color: white;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="score">Очки: 0</div>
-    <button id="clickButton">Клик!</button>
-    <div id="upgrades">
-        <button class="upgrade-button" id="autoClickerBtn" onclick="buyAutoClicker()">
-            Купить автокликер (1000 очков)
-        </button>
-        <button class="upgrade-button" id="multiplierBtn" onclick="buyMultiplier()">
-            Купить увеличитель клика (+1 очко) (2000 очков)
-        </button>
+    <h1>Добро пожаловать в Telegram Кликер!</h1>
+    <div>
+        <label for="userId">Ваш Telegram ID:</label>
+        <input type="text" id="userId" placeholder="Введите ваш Telegram ID">
     </div>
-    <button id="resetButton" onclick="resetGame()">Сбросить счет</button>
+    <div id="score">Ваши очки: 0</div>
+    <button id="clickButton">Нажать</button>
+    <button id="statusButton">Показать статус</button>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-
-        let score = 0;
-        let clickPower = 1;
-        let autoClickers = 0;
-
-        document.getElementById('clickButton').onclick = function() {
-            score += clickPower;
-            updateScore();
-            // Добавляем вибрацию при клике
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-        };
-
-        async function updateScore() {
-            console.log('Обновление счета:', score, clickPower, autoClickers); // Отладочный лог
-            document.getElementById('score').innerText = `Очки: ${Math.floor(score)}`;
-
-            // Сохраняем прогресс в CloudStorage Telegram
-            if (tg.storage) {
-                const dataToSave = {
-                    score: score,
-                    clickPower: clickPower,
-                    autoClickers: autoClickers
-                };
-                tg.storage.setData({ clickerData: JSON.stringify(dataToSave) });
-                console.log('Данные сохранены в tg.storage.');
+        // Функция для отображения данных
+        function displayUserData(data) {
+            const scoreDiv = document.getElementById('score');
+            if (data) {
+                scoreDiv.innerText = `Ваши очки: ${data.score}\nСила клика: ${data.click_power}\nАвтокликеры: ${data.auto_clickers}`;
             } else {
-                console.warn('tg.storage недоступен.');
+                scoreDiv.innerText = `Данные не найдены. Пожалуйста, используйте Telegram-бота для инициализации.`;
+            }
+        }
+
+        // Обработчик кнопки клика
+        document.getElementById('clickButton').addEventListener('click', async () => {
+            const userId = document.getElementById('userId').value.trim();
+            if (!userId) {
+                alert('Пожалуйста, введите ваш Telegram ID.');
+                return;
             }
 
-            // Дополнительно сохраняем в localStorage для резервного копирования
             try {
-                const dataToSave = {
-                    score: score,
-                    clickPower: clickPower,
-                    autoClickers: autoClickers
-                };
-                localStorage.setItem('clickerData', JSON.stringify(dataToSave));
-                console.log('Данные сохранены в localStorage.');
-            } catch (e) {
-                console.error('Ошибка при сохранении в localStorage:', e);
-            }
-        }
+                const response = await fetch('http://localhost:5000/click', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: userId })
+                });
 
-        async function loadScore() {
-            // Загружаем из tg.storage
-            if (tg.storage) {
-                const data = await tg.storage.getData();
-                if (data.clickerData) {
-                    try {
-                        const parsedData = JSON.parse(data.clickerData);
-                        score = parsedData.score || 0;
-                        clickPower = parsedData.clickPower || 1;
-                        autoClickers = parsedData.autoClickers || 0;
-                        console.log('Данные загружены из tg.storage:', parsedData);
-                        updateScore();
-                    } catch (e) {
-                        console.error('Ошибка при разборе данных из tg.storage:', e);
-                    }
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayUserData({ score: result.score });
+                    alert('Клик успешно сохранен!');
                 } else {
-                    console.log('Данные из tg.storage отсутствуют.');
+                    alert(`Ошибка: ${result.message}`);
                 }
-            } else {
-                console.warn('tg.storage недоступен.');
+            } catch (error) {
+                console.error('Ошибка при отправке клика:', error);
+                alert('Не удалось отправить клик. Убедитесь, что бот запущен.');
+            }
+        });
+
+        // Обработчик кнопки статуса
+        document.getElementById('statusButton').addEventListener('click', async () => {
+            const userId = document.getElementById('userId').value.trim();
+            if (!userId) {
+                alert('Пожалуйста, введите ваш Telegram ID.');
+                return;
             }
 
-            // Загружаем из localStorage как резерв
-            const savedData = localStorage.getItem('clickerData');
-            if (savedData) {
-                try {
-                    const parsedData = JSON.parse(savedData);
-                    score = parsedData.score || 0;
-                    clickPower = parsedData.clickPower || 1;
-                    autoClickers = parsedData.autoClickers || 0;
-                    console.log('Данные загружены из localStorage:', parsedData);
-                    updateScore();
-                } catch (e) {
-                    console.error('Ошибка при разборе данных из localStorage:', e);
-                }
-            } else {
-                console.log('Данные из localStorage отсутствуют.');
+            try {
+                // Отправка запроса к Telegram боту для получения статуса
+                // Для этого требуется реализовать дополнительный эндпоинт или использовать существующие команды бота
+                alert('Статус доступен через Telegram бота. Пожалуйста, используйте команду /status.');
+            } catch (error) {
+                console.error('Ошибка при получении статуса:', error);
+                alert('Не удалось получить статус.');
             }
-        }
-
-        async function buyAutoClicker() {
-            if (score >= 1000) {
-                score -= 1000;
-                autoClickers++;
-                updateScore();
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            } else {
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('error');
-                }
-            }
-        }
-
-        async function buyMultiplier() {
-            if (score >= 2000) {
-                score -= 2000;
-                clickPower += 1; // Добавляем 1 к clickPower вместо умножения
-                updateScore();
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            } else {
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('error');
-                }
-            }
-        }
-
-        async function resetGame() {
-            if (confirm("Вы уверены, что хотите сбросить счет?")) {
-                score = 0;
-                clickPower = 1;
-                autoClickers = 0;
-                updateScore();
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-
-                // Сброс данных в tg.storage
-                if (tg.storage) {
-                    tg.storage.setData({ clickerData: JSON.stringify({
-                        score: score,
-                        clickPower: clickPower,
-                        autoClickers: autoClickers
-                    }) });
-                    console.log('Данные сброшены в tg.storage.');
-                }
-
-                // Сброс данных в localStorage
-                try {
-                    const dataToReset = {
-                        score: score,
-                        clickPower: clickPower,
-                        autoClickers: autoClickers
-                    };
-                    localStorage.setItem('clickerData', JSON.stringify(dataToReset));
-                    console.log('Данные сброшены в localStorage.');
-                } catch (e) {
-                    console.error('Ошибка при сбросе в localStorage:', e);
-                }
-            }
-        }
-
-        // Автокликер с регулярным сохранением
-        setInterval(() => {
-            score += autoClickers;
-            updateScore();
-        }, 1000);
-
-        // Загрузка сохраненного прогресса при загрузке страницы
-        window.onload = loadScore;
+        });
     </script>
 </body>
 </html>
