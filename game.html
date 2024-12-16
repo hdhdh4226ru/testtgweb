@@ -47,6 +47,15 @@
             color: var(--tg-theme-text-color);
             cursor: pointer;
         }
+        #resetButton {
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            background-color: #ff4d4d;
+            color: white;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -57,9 +66,10 @@
             Купить автокликер (100 очков)
         </button>
         <button class="upgrade-button" id="multiplierBtn" onclick="buyMultiplier()">
-            Купить множитель (200 очков)
+            Купить увеличитель клика (+1 очко) (200 очков)
         </button>
     </div>
+    <button id="resetButton" onclick="resetGame()">Сбросить счет</button>
 
     <script>
         let tg = window.Telegram.WebApp;
@@ -88,11 +98,17 @@
                     autoClickers: autoClickers
                 }));
             }
+            // Сохраняем прогресс в localStorage
+            localStorage.setItem('clickerData', JSON.stringify({
+                score: score,
+                clickPower: clickPower,
+                autoClickers: autoClickers
+            }));
         }
 
         function buyAutoClicker() {
-            if (score >= 100) {
-                score -= 100;
+            if (score >= 1000) {
+                score -= 1000;
                 autoClickers++;
                 updateScore();
                 if (tg.HapticFeedback) {
@@ -106,9 +122,9 @@
         }
 
         function buyMultiplier() {
-            if (score >= 200) {
-                score -= 200;
-                clickPower *= 2;
+            if (score >= 2000) {
+                score -= 2000;
+                clickPower += 1; // Добавляем 1 к clickPower вместо умножения
                 updateScore();
                 if (tg.HapticFeedback) {
                     tg.HapticFeedback.notificationOccurred('success');
@@ -116,6 +132,18 @@
             } else {
                 if (tg.HapticFeedback) {
                     tg.HapticFeedback.notificationOccurred('error');
+                }
+            }
+        }
+
+        function resetGame() {
+            if (confirm("Вы уверены, что хотите сбросить счет?")) {
+                score = 0;
+                clickPower = 1;
+                autoClickers = 0;
+                updateScore();
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
                 }
             }
         }
@@ -128,18 +156,33 @@
             }
         }, 1000);
 
-        // Загрузка сохраненного прогресса
-        if (tg.CloudStorage) {
-            tg.CloudStorage.getItem('clickerData', function(err, value) {
-                if (!err && value) {
-                    const data = JSON.parse(value);
-                    score = data.score || 0;
-                    clickPower = data.clickPower || 1;
-                    autoClickers = data.autoClickers || 0;
-                    updateScore();
-                }
-            });
+        // Загрузка сохраненного прогресса из CloudStorage и localStorage
+        function loadGame() {
+            // Загружаем из CloudStorage
+            if (tg.CloudStorage) {
+                tg.CloudStorage.getItem('clickerData', function(err, value) {
+                    if (!err && value) {
+                        const data = JSON.parse(value);
+                        score = data.score || 0;
+                        clickPower = data.clickPower || 1;
+                        autoClickers = data.autoClickers || 0;
+                        updateScore();
+                    }
+                });
+            }
+
+            // Загружаем из localStorage
+            const savedData = localStorage.getItem('clickerData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                score = data.score || 0;
+                clickPower = data.clickPower || 1;
+                autoClickers = data.autoClickers || 0;
+                updateScore();
+            }
         }
+
+        window.onload = loadGame;
     </script>
 </body>
 </html>
